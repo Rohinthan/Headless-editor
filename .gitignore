@@ -1,0 +1,32 @@
+# Build directory
+build/
+bin/
+lib/
+out/
+
+# CMake generated files
+CMakeUserPresets.json
+CMakeFiles/
+CMakeCache.txt
+*.cmake
+!CMakeLists.txt
+
+# Generated media / test artifacts
+*.mp4
+*.mkv
+*.mov
+*.ts
+*.yuv
+benchmark_sample.mp4
+test_synthetic.mp4
+
+# IDE / Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
