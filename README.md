@@ -1,4 +1,4 @@
-# Antigravity Video Editor Core ⚡
+# Headless-Editor ⚡
 
 A high-performance, lightweight Linux Video Editor core implemented in **C++20**, **Qt 6 (QML)**, and **FFmpeg**. Built for hardware-accelerated video decoding (VA-API / CUDA), node-based DAG composition, cubic Bézier keyframe animation, and real-time preview viewport rendering.
 
