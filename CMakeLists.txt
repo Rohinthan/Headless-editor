@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(AntigravityVideoEditor LANGUAGES CXX)
+project(HeadlessEditor LANGUAGES CXX)
 
 # Target C++20 standard
 set(CMAKE_CXX_STANDARD 20)
@@ -54,7 +54,7 @@ include_directories(
 )
 
 # ----------------------------------------------------
-# Target 1: Headless CLI Diagnostic & Benchmark Tool
+# Target 1: Headless CLI Decoder Diagnostic Tool
 # ----------------------------------------------------
 add_executable(cli_test_decoder
     tests/cli_test_decoder.cpp
@@ -72,12 +72,37 @@ target_compile_definitions(cli_test_decoder PRIVATE
 )
 
 # ----------------------------------------------------
-# Target 2: Video Editor GUI Application
+# Target 2: Headless CLI GPU Compositor Benchmark
+# ----------------------------------------------------
+add_executable(cli_test_compositor
+    tests/cli_test_compositor.cpp
+    src/core/GPUEngine.cpp
+    src/core/GraphEngine.cpp
+    src/core/DecoderEngine.cpp
+)
+
+target_link_libraries(cli_test_compositor PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::OpenGL
+    PkgConfig::FFMPEG
+    $<$<BOOL:${LIBVA_FOUND}>:PkgConfig::LIBVA>
+    OpenGL::GL
+    Threads::Threads
+)
+
+target_compile_definitions(cli_test_compositor PRIVATE
+    SRC_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+)
+
+# ----------------------------------------------------
+# Target 3: Video Editor GUI Application
 # ----------------------------------------------------
 add_executable(video_editor
     src/main.cpp
     src/core/DecoderEngine.cpp
     src/core/GraphEngine.cpp
+    src/core/GPUEngine.cpp
     src/ui/ViewportItem.cpp
 )
 
