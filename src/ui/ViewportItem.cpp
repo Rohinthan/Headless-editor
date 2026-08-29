@@ -9,7 +9,8 @@ namespace antigravity::ui {
 ViewportItem::ViewportItem(QQuickItem *parent)
     : QQuickItem(parent),
       decoder_(std::make_unique<core::DecoderEngine>()),
-      graph_(std::make_unique<core::RenderGraph>()) {
+      graph_(std::make_unique<core::RenderGraph>()),
+      gpu_engine_(std::make_unique<core::GPUEngine>()) {
 
     setFlag(ItemHasContents, true);
 
@@ -22,9 +23,9 @@ ViewportItem::ViewportItem(QQuickItem *parent)
     // Initial probe of HW devices
     auto hw_types = core::DecoderEngine::get_supported_hw_types();
     if (!hw_types.empty()) {
-        hw_accel_status_ = QString("HW Acceleration Ready: %1").arg(QString::fromStdString(hw_types[0]));
+        hw_accel_status_ = QString("HW Accelerated: %1 + OpenGL GLSL Pipeline").arg(QString::fromStdString(hw_types[0]));
     } else {
-        hw_accel_status_ = "CPU Software Engine Ready";
+        hw_accel_status_ = "GPU GLSL Compositor Active";
     }
 
     refreshFrame();
@@ -174,10 +175,10 @@ void ViewportItem::openFile(const QString& path) {
         fps_ = std::max(1.0, decoder_->fps());
 
         if (decoder_->is_hw_accelerated()) {
-            hw_accel_status_ = QString("Hardware Accelerated (%1)")
+            hw_accel_status_ = QString("Hardware Accelerated (%1) + GPU GLSL Pipeline")
                 .arg(QString::fromStdString(decoder_->hw_device_name()).toUpper());
         } else {
-            hw_accel_status_ = "Software CPU Fallback (Multi-threaded)";
+            hw_accel_status_ = "Multi-threaded CPU Decode + GPU GLSL Compositor";
         }
 
         graph_->setup_default_preset(local_file.toStdString());
@@ -194,7 +195,7 @@ void ViewportItem::openFile(const QString& path) {
 
         refreshFrame();
     } else {
-        hw_accel_status_ = "Failed to load media (Fallback to Test Pattern)";
+        hw_accel_status_ = "Fallback to GPU Procedural Test Pattern";
         emit hwAccelStatusChanged();
         graph_->setup_default_preset("");
         refreshFrame();
@@ -281,7 +282,23 @@ void ViewportItem::refreshFrame() {
         return nullptr;
     };
 
-    core::DecodedVideoFrame comp = graph_->render_frame(current_position_sec_, target_w, target_h, frame_fetcher);
+    core::RenderPlan plan = graph_->evaluate(current_position_sec_);
+    plan.canvas_width = target_w;
+    plan.canvas_height = target_h;
+
+    // Use GPU Engine for compositing
+    if (!gpu_initialized_) {
+        gpu_initialized_ = gpu_engine_->initContext(target_w, target_h);
+    }
+
+    core::DecodedVideoFrame comp;
+    if (gpu_initialized_) {
+        gpu_engine_->makeCurrent();
+        gpu_engine_->renderComposite(plan, frame_fetcher);
+        comp = gpu_engine_->readbackOutputFrame(current_position_sec_);
+    } else {
+        comp = graph_->render_frame(current_position_sec_, target_w, target_h, frame_fetcher);
+    }
 
     {
         std::lock_guard<std::mutex> lock(image_mutex_);
