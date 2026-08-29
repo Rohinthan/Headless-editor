@@ -1,5 +1,9 @@
 #pragma once
 
+#ifndef GL_GLEXT_PROTOTYPES
+#define GL_GLEXT_PROTOTYPES 1
+#endif
+
 #include <QQuickItem>
 #include <QSGSimpleTextureNode>
 #include <QSGTexture>
@@ -12,6 +16,7 @@
 #include <atomic>
 #include "../core/DecoderEngine.hpp"
 #include "../core/GraphEngine.hpp"
+#include "../core/GPUEngine.hpp"
 
 namespace antigravity::ui {
 
@@ -119,6 +124,7 @@ private:
 
     std::unique_ptr<core::DecoderEngine> decoder_;
     std::unique_ptr<core::RenderGraph> graph_;
+    std::unique_ptr<core::GPUEngine> gpu_engine_;
 
     QTimer playback_timer_;
     QElapsedTimer wall_clock_;
@@ -145,6 +151,7 @@ private:
     QImage current_qimage_;
     std::mutex image_mutex_;
     std::atomic<bool> texture_dirty_{false};
+    bool gpu_initialized_ = false;
 };
 
 } // namespace antigravity::ui
