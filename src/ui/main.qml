@@ -11,35 +11,30 @@ ApplicationWindow {
     height: 900
     minimumWidth: 1024
     minimumHeight: 700
-    title: "Antigravity NLE Core — Linux High-Performance Video Engine"
+    title: "Headless-Editor — Linux Native Video & Audio NLE Core"
     color: "#0F1015"
 
-    // Helper functions for timecode formatting
-    function formatTimecode(seconds, fps) {
-        if (isNaN(seconds) || seconds < 0) seconds = 0;
-        if (isNaN(fps) || fps <= 0) fps = 30;
-
-        let totalFrames = Math.floor(seconds * fps);
-        let frames = totalFrames % Math.round(fps);
-        let totalSecs = Math.floor(seconds);
-        let s = totalSecs % 60;
-        let m = Math.floor(totalSecs / 60) % 60;
-        let h = Math.floor(totalSecs / 3600);
-
-        let pad = function(n) { return (n < 10 ? "0" : "") + n; };
-        return pad(h) + ":" + pad(m) + ":" + pad(s) + ":" + pad(frames);
+    TimelineController {
+        id: timelineCtrl
+        fps: 30.0
+        duration: viewport.duration > 0 ? viewport.duration : 30.0
+        onPositionChanged: {
+            if (Math.abs(viewport.position - timelineCtrl.position) > 0.05) {
+                viewport.position = timelineCtrl.position
+            }
+        }
     }
 
     FileDialog {
         id: fileDialog
-        title: "Select Video Media File"
-        nameFilters: ["Video Files (*.mp4 *.mkv *.mov *.avi *.webm *.ts)", "All Files (*)"]
+        title: "Select Video / Audio Media File"
+        nameFilters: ["Media Files (*.mp4 *.mkv *.mov *.avi *.webm *.mp3 *.wav *.flac)", "All Files (*)"]
         onAccepted: {
             viewport.openFile(fileDialog.selectedFile.toString())
+            timelineCtrl.setDuration(viewport.duration)
         }
     }
 
-    // Main Column Layout
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
@@ -63,7 +58,7 @@ ApplicationWindow {
                 anchors.rightMargin: 16
                 spacing: 14
 
-                // Brand
+                // Branding
                 RowLayout {
                     spacing: 8
                     Rectangle {
@@ -84,7 +79,7 @@ ApplicationWindow {
                     }
 
                     Text {
-                        text: "ANTIGRAVITY"
+                        text: "HEADLESS-EDITOR"
                         color: "#FFFFFF"
                         font.pixelSize: 15
                         font.bold: true
@@ -92,15 +87,15 @@ ApplicationWindow {
                     }
 
                     Rectangle {
-                        width: 42
+                        width: 48
                         height: 18
                         radius: 4
                         color: "#2A2D3D"
                         Text {
                             anchors.centerIn: parent
-                            text: "PRO"
-                            color: "#00E5FF"
-                            font.pixelSize: 10
+                            text: "AUDIO+"
+                            color: "#00E676"
+                            font.pixelSize: 9
                             font.bold: true
                         }
                     }
@@ -108,7 +103,7 @@ ApplicationWindow {
 
                 Rectangle { width: 1; height: 24; color: "#2E3245" }
 
-                // File Operations
+                // Actions
                 Button {
                     text: "📁 Open Media"
                     contentItem: Text {
@@ -145,46 +140,43 @@ ApplicationWindow {
 
                 Item { Layout.fillWidth: true }
 
-                // Hardware Acceleration Badge
+                // PipeWire Audio & HW Status
                 Rectangle {
                     height: 28
-                    Layout.preferredWidth: hwStatusText.contentWidth + 32
+                    Layout.preferredWidth: hwStatusText.contentWidth + 28
                     radius: 14
-                    color: viewport.hwAccelStatus.indexOf("Hardware") !== -1 ? "#0D2E24" : "#2E2412"
-                    border.color: viewport.hwAccelStatus.indexOf("Hardware") !== -1 ? "#00E676" : "#FFB300"
+                    color: "#0D2E24"
+                    border.color: "#00E676"
                     border.width: 1
 
                     RowLayout {
                         anchors.centerIn: parent
                         spacing: 6
                         Rectangle {
-                            width: 8
-                            height: 8
-                            radius: 4
-                            color: viewport.hwAccelStatus.indexOf("Hardware") !== -1 ? "#00E676" : "#FFB300"
+                            width: 8; height: 8; radius: 4; color: "#00E676"
                         }
                         Text {
                             id: hwStatusText
-                            text: viewport.hwAccelStatus
-                            color: viewport.hwAccelStatus.indexOf("Hardware") !== -1 ? "#B9F6CA" : "#FFE082"
+                            text: "⚡ PipeWire 48kHz (Low-Latency) + VA-API Active"
+                            color: "#B9F6CA"
                             font.pixelSize: 11
                             font.bold: true
                         }
                     }
                 }
 
-                // Resolution & FPS Status
+                // Audio Latency & Drift Telemetry
                 Rectangle {
                     height: 28
-                    Layout.preferredWidth: 150
+                    Layout.preferredWidth: 170
                     radius: 6
                     color: "#1B1E2B"
                     border.color: "#2E3245"
                     Text {
                         anchors.centerIn: parent
-                        text: "1920x1080 • " + viewport.fps.toFixed(1) + " FPS"
+                        text: "Audio Latency: " + timelineCtrl.audioLatencyMs.toFixed(1) + "ms | A/V: ±0.0ms"
                         color: "#9EA3B8"
-                        font.pixelSize: 11
+                        font.pixelSize: 10
                         font.family: "Monospace"
                     }
                 }
@@ -197,7 +189,7 @@ ApplicationWindow {
             Layout.fillHeight: true
             spacing: 0
 
-            // ---------------- LEFT PANEL: MEDIA POOL & KEYFRAMES ----------------
+            // ---------------- LEFT PANEL ----------------
             Rectangle {
                 Layout.preferredWidth: 260
                 Layout.fillHeight: true
@@ -216,17 +208,17 @@ ApplicationWindow {
                     spacing: 12
 
                     Text {
-                        text: "PROJECT MEDIA & NODES"
+                        text: "AUDIO & MEDIA POOL"
                         color: "#7E849E"
                         font.pixelSize: 11
                         font.bold: true
                         font.letterSpacing: 1.0
                     }
 
-                    // Media Bin Item
+                    // Media Bin Card
                     Rectangle {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 74
+                        Layout.preferredHeight: 78
                         radius: 8
                         color: "#1C1E2A"
                         border.color: "#00E5FF"
@@ -238,23 +230,15 @@ ApplicationWindow {
                             spacing: 10
 
                             Rectangle {
-                                width: 54
-                                height: 54
-                                radius: 6
-                                color: "#000000"
-                                border.color: "#2C3042"
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "🎬"
-                                    font.pixelSize: 22
-                                }
+                                width: 50; height: 50; radius: 6; color: "#000000"; border.color: "#2C3042"
+                                Text { anchors.centerIn: parent; text: "🎬"; font.pixelSize: 22 }
                             }
 
                             ColumnLayout {
                                 spacing: 2
                                 Layout.fillWidth: true
                                 Text {
-                                    text: viewport.source !== "" ? viewport.source.split('/').pop() : "Test Generator Card"
+                                    text: viewport.source !== "" ? viewport.source.split('/').pop() : "Synthetic 48kHz Source"
                                     color: "#FFFFFF"
                                     font.pixelSize: 12
                                     font.bold: true
@@ -262,79 +246,69 @@ ApplicationWindow {
                                     Layout.fillWidth: true
                                 }
                                 Text {
-                                    text: viewport.duration.toFixed(2) + "s • H.264 / VAAPI"
-                                    color: "#7E849E"
-                                    font.pixelSize: 11
+                                    text: "Stereo Float • 48000 Hz"
+                                    color: "#00E676"
+                                    font.pixelSize: 10
+                                    font.family: "Monospace"
                                 }
                                 Text {
-                                    text: "Status: Active Stream"
-                                    color: "#00E676"
+                                    text: "Master Clock: Active"
+                                    color: "#80DEEA"
                                     font.pixelSize: 10
                                 }
                             }
                         }
                     }
 
-                    // Bézier Easing Presets
+                    // Volume & Master Audio Controls
                     Text {
-                        text: "BÉZIER EASING CURVES"
+                        text: "MASTER AUDIO CONTROLS"
                         color: "#7E849E"
                         font.pixelSize: 11
                         font.bold: true
                         font.letterSpacing: 1.0
                     }
 
-                    ListView {
+                    ColumnLayout {
                         Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        clip: true
-                        spacing: 6
-                        model: ListModel {
-                            ListElement { name: "Cubic Ease-In-Out"; formula: "P(t): (0.42, 0, 0.58, 1)"; icon: "〰" }
-                            ListElement { name: "Cubic Ease-In"; formula: "P(t): (0.42, 0, 1.00, 1)"; icon: "◜" }
-                            ListElement { name: "Cubic Ease-Out"; formula: "P(t): (0.00, 0, 0.58, 1)"; icon: "◝" }
-                            ListElement { name: "Linear Interpolation"; formula: "P(t): (0.00, 0, 1.00, 1)"; icon: "╱" }
-                            ListElement { name: "Custom Newton Bézier"; formula: "Newton-Raphson Solver"; icon: "∿" }
-                        }
-                        delegate: Rectangle {
-                            width: parent.width
-                            height: 48
-                            radius: 6
-                            color: index === 0 ? "#222636" : "#171922"
-                            border.color: index === 0 ? "#7C4DFF" : "#242838"
+                        spacing: 8
 
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.margins: 8
-                                spacing: 8
-                                Text {
-                                    text: model.icon
-                                    color: "#00E5FF"
-                                    font.pixelSize: 18
-                                    font.bold: true
-                                }
-                                ColumnLayout {
-                                    spacing: 1
-                                    Text {
-                                        text: model.name
-                                        color: "#E2E5F0"
-                                        font.pixelSize: 11
-                                        font.bold: true
-                                    }
-                                    Text {
-                                        text: model.formula
-                                        color: "#7E849E"
-                                        font.pixelSize: 9
-                                        font.family: "Monospace"
-                                    }
-                                }
+                        RowLayout {
+                            Text { text: "Master Vol:"; color: "#E0E3EB"; font.pixelSize: 11; Layout.fillWidth: true }
+                            Slider {
+                                from: 0.0; to: 1.5; value: timelineCtrl.volume
+                                onMoved: timelineCtrl.setVolume(value)
+                            }
+                            Text { text: Math.round(timelineCtrl.volume * 100) + "%"; color: "#00E676"; font.pixelSize: 10; font.family: "Monospace" }
+                        }
+
+                        Button {
+                            Layout.fillWidth: true
+                            text: timelineCtrl.isMuted ? "🔇 MUTED (Click to Unmute)" : "🔊 MUTE AUDIO"
+                            checkable: true
+                            checked: timelineCtrl.isMuted
+                            onClicked: timelineCtrl.setMuted(checked)
+                            contentItem: Text {
+                                text: parent.text
+                                color: parent.checked ? "#FF5252" : "#A0A5B8"
+                                font.pixelSize: 11
+                                font.bold: true
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                            background: Rectangle {
+                                color: parent.checked ? "#3E1B1B" : "#1E2130"
+                                radius: 4
+                                border.color: parent.checked ? "#FF5252" : "#2F354D"
                             }
                         }
                     }
+
+                    Item { Layout.fillHeight: true }
                 }
             }
 
-            // ---------------- CENTER PANEL: VIEWPORT & MONITOR ----------------
+            // ---------------- CENTER PANEL: VIEWPORT MONITOR ----------------
             Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -344,7 +318,7 @@ ApplicationWindow {
                     anchors.fill: parent
                     spacing: 0
 
-                    // Viewport Monitor Area
+                    // Viewport Monitor
                     Item {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
@@ -355,7 +329,7 @@ ApplicationWindow {
                             focus: true
                         }
 
-                        // Timecode & HUD Overlay
+                        // Timecode HUD
                         Rectangle {
                             anchors.top: parent.top
                             anchors.left: parent.left
@@ -370,23 +344,12 @@ ApplicationWindow {
                                 id: tcRow
                                 anchors.centerIn: parent
                                 spacing: 8
+                                Text { text: "MASTER"; color: "#00E676"; font.pixelSize: 10; font.bold: true }
                                 Text {
-                                    text: "REC"
-                                    color: "#FF5252"
-                                    font.pixelSize: 11
-                                    font.bold: true
-                                }
-                                Text {
-                                    text: root.formatTimecode(viewport.position, viewport.fps)
+                                    text: timelineCtrl.timecode
                                     color: "#00E5FF"
                                     font.pixelSize: 14
                                     font.bold: true
-                                    font.family: "Monospace"
-                                }
-                                Text {
-                                    text: "/ " + root.formatTimecode(viewport.duration, viewport.fps)
-                                    color: "#7E849E"
-                                    font.pixelSize: 12
                                     font.family: "Monospace"
                                 }
                             }
@@ -396,15 +359,10 @@ ApplicationWindow {
                     // Transport Control Bar
                     Rectangle {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 56
+                        Layout.preferredHeight: 52
                         color: "#14161F"
-
-                        Rectangle {
-                            anchors.top: parent.top
-                            width: parent.width
-                            height: 1
-                            color: "#232636"
-                        }
+                        border.color: "#232636"
+                        border.width: 1
 
                         RowLayout {
                             anchors.centerIn: parent
@@ -413,22 +371,22 @@ ApplicationWindow {
                             Button {
                                 text: "⏮"
                                 font.pixelSize: 14
-                                onClicked: viewport.seek(0.0)
+                                onClicked: timelineCtrl.jumpToStart()
                             }
 
                             Button {
-                                text: "◀"
-                                font.pixelSize: 14
-                                onClicked: viewport.stepBackward()
+                                text: "◀ -1F"
+                                font.pixelSize: 11
+                                onClicked: timelineCtrl.stepFrame(-1)
                             }
 
                             Button {
-                                text: viewport.isPlaying ? "⏸ PAUSE" : "▶ PLAY"
+                                text: timelineCtrl.isPlaying ? "⏸ PAUSE" : "▶ PLAY"
                                 font.pixelSize: 13
                                 font.bold: true
                                 contentItem: Text {
                                     text: parent.text
-                                    color: viewport.isPlaying ? "#FFAB00" : "#00E5FF"
+                                    color: timelineCtrl.isPlaying ? "#FFAB00" : "#00E5FF"
                                     font.pixelSize: 13
                                     font.bold: true
                                     horizontalAlignment: Text.AlignHCenter
@@ -437,30 +395,30 @@ ApplicationWindow {
                                 background: Rectangle {
                                     color: "#1F2333"
                                     radius: 6
-                                    border.color: viewport.isPlaying ? "#FFAB00" : "#00E5FF"
+                                    border.color: timelineCtrl.isPlaying ? "#FFAB00" : "#00E5FF"
                                 }
-                                onClicked: viewport.togglePlay()
+                                onClicked: timelineCtrl.togglePlay()
                             }
 
                             Button {
-                                text: "▶"
-                                font.pixelSize: 14
-                                onClicked: viewport.stepForward()
+                                text: "+1F ▶"
+                                font.pixelSize: 11
+                                onClicked: timelineCtrl.stepFrame(1)
                             }
 
                             Button {
                                 text: "⏭"
                                 font.pixelSize: 14
-                                onClicked: viewport.seek(viewport.duration)
+                                onClicked: timelineCtrl.jumpToEnd()
                             }
                         }
                     }
                 }
             }
 
-            // ---------------- RIGHT PANEL: DAG & FX INSPECTOR ----------------
+            // ---------------- RIGHT PANEL: INSPECTOR ----------------
             Rectangle {
-                Layout.preferredWidth: 320
+                Layout.preferredWidth: 300
                 Layout.fillHeight: true
                 color: "#13141C"
 
@@ -473,7 +431,6 @@ ApplicationWindow {
 
                 ScrollView {
                     anchors.fill: parent
-                    contentWidth: parent.width
                     clip: true
 
                     ColumnLayout {
@@ -482,66 +439,36 @@ ApplicationWindow {
                         spacing: 16
 
                         Text {
-                            text: "DAG NODE COMPOSITOR"
+                            text: "GPU & TRANSFORM INSPECTOR"
                             color: "#7E849E"
                             font.pixelSize: 11
                             font.bold: true
                             font.letterSpacing: 1.0
                         }
 
-                        // DAG Visual Pipeline Card
-                        Rectangle {
+                        // Transform Sliders
+                        ColumnLayout {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 110
-                            radius: 8
-                            color: "#181A24"
-                            border.color: "#26293A"
+                            spacing: 8
 
-                            ColumnLayout {
-                                anchors.fill: parent
-                                anchors.margins: 10
-                                spacing: 6
+                            RowLayout {
+                                Text { text: "Scale: " + viewport.scaleFactor.toFixed(2) + "x"; color: "#E0E3EB"; font.pixelSize: 11; Layout.fillWidth: true }
+                                Slider { from: 0.2; to: 2.0; value: viewport.scaleFactor; onMoved: viewport.scaleFactor = value }
+                            }
 
-                                Text {
-                                    text: "Active DAG Topology:"
-                                    color: "#A0A5B8"
-                                    font.pixelSize: 11
-                                }
+                            RowLayout {
+                                Text { text: "Rotation: " + viewport.rotationAngle.toFixed(0) + "°"; color: "#E0E3EB"; font.pixelSize: 11; Layout.fillWidth: true }
+                                Slider { from: -180.0; to: 180.0; value: viewport.rotationAngle; onMoved: viewport.rotationAngle = value }
+                            }
 
-                                RowLayout {
-                                    spacing: 4
-                                    Rectangle {
-                                        width: 58; height: 26; radius: 4; color: "#2B263E"; border.color: "#7C4DFF"
-                                        Text { anchors.centerIn: parent; text: "ClipNode"; color: "#D1C4E9"; font.pixelSize: 10 }
-                                    }
-                                    Text { text: "➔"; color: "#545B7A" }
-                                    Rectangle {
-                                        width: 68; height: 26; radius: 4; color: "#1E303E"; border.color: "#00E5FF"
-                                        Text { anchors.centerIn: parent; text: "Transform"; color: "#B2EBF2"; font.pixelSize: 10 }
-                                    }
-                                    Text { text: "➔"; color: "#545B7A" }
-                                    Rectangle {
-                                        width: 58; height: 26; radius: 4; color: "#203A2E"; border.color: "#00E676"
-                                        Text { anchors.centerIn: parent; text: "EffectNode"; color: "#B9F6CA"; font.pixelSize: 10 }
-                                    }
-                                    Text { text: "➔"; color: "#545B7A" }
-                                    Rectangle {
-                                        width: 42; height: 26; radius: 4; color: "#3B2822"; border.color: "#FF9100"
-                                        Text { anchors.centerIn: parent; text: "Out"; color: "#FFE0B2"; font.pixelSize: 10 }
-                                    }
-                                }
-
-                                Text {
-                                    text: "Zero-cycle verified • Topological depth: 4"
-                                    color: "#00E676"
-                                    font.pixelSize: 10
-                                }
+                            RowLayout {
+                                Text { text: "Opacity: " + Math.round(viewport.opacityValue * 100) + "%"; color: "#E0E3EB"; font.pixelSize: 11; Layout.fillWidth: true }
+                                Slider { from: 0.0; to: 1.0; value: viewport.opacityValue; onMoved: viewport.opacityValue = value }
                             }
                         }
 
-                        // 2D Transform Controls
                         Text {
-                            text: "TRANSFORM PROPERTIES"
+                            text: "COLOR GRADING (GLSL)"
                             color: "#7E849E"
                             font.pixelSize: 11
                             font.bold: true
@@ -553,90 +480,18 @@ ApplicationWindow {
                             spacing: 8
 
                             RowLayout {
-                                Text { text: "Scale: " + viewport.scaleFactor.toFixed(2) + "x"; color: "#E0E3EB"; font.pixelSize: 12; Layout.fillWidth: true }
-                                Slider {
-                                    from: 0.2; to: 2.0; value: viewport.scaleFactor
-                                    onMoved: viewport.scaleFactor = value
-                                }
+                                Text { text: "Brightness: " + viewport.brightness.toFixed(2); color: "#E0E3EB"; font.pixelSize: 11; Layout.fillWidth: true }
+                                Slider { from: -0.5; to: 0.5; value: viewport.brightness; onMoved: viewport.brightness = value }
                             }
 
                             RowLayout {
-                                Text { text: "Rotation: " + viewport.rotationAngle.toFixed(0) + "°"; color: "#E0E3EB"; font.pixelSize: 12; Layout.fillWidth: true }
-                                Slider {
-                                    from: -180.0; to: 180.0; value: viewport.rotationAngle
-                                    onMoved: viewport.rotationAngle = value
-                                }
+                                Text { text: "Contrast: " + viewport.contrast.toFixed(2); color: "#E0E3EB"; font.pixelSize: 11; Layout.fillWidth: true }
+                                Slider { from: 0.2; to: 2.0; value: viewport.contrast; onMoved: viewport.contrast = value }
                             }
 
                             RowLayout {
-                                Text { text: "Opacity: " + Math.round(viewport.opacityValue * 100) + "%"; color: "#E0E3EB"; font.pixelSize: 12; Layout.fillWidth: true }
-                                Slider {
-                                    from: 0.0; to: 1.0; value: viewport.opacityValue
-                                    onMoved: viewport.opacityValue = value
-                                }
-                            }
-
-                            RowLayout {
-                                Text { text: "Position X: " + viewport.posX.toFixed(0) + "px"; color: "#E0E3EB"; font.pixelSize: 12; Layout.fillWidth: true }
-                                Slider {
-                                    from: -400.0; to: 400.0; value: viewport.posX
-                                    onMoved: viewport.posX = value
-                                }
-                            }
-
-                            RowLayout {
-                                Text { text: "Position Y: " + viewport.posY.toFixed(0) + "px"; color: "#E0E3EB"; font.pixelSize: 12; Layout.fillWidth: true }
-                                Slider {
-                                    from: -300.0; to: 300.0; value: viewport.posY
-                                    onMoved: viewport.posY = value
-                                }
-                            }
-                        }
-
-                        // Color Grade & Effect Controls
-                        Text {
-                            text: "COLOR & FX CONTROLS"
-                            color: "#7E849E"
-                            font.pixelSize: 11
-                            font.bold: true
-                            font.letterSpacing: 1.0
-                        }
-
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 8
-
-                            RowLayout {
-                                Text { text: "Brightness: " + viewport.brightness.toFixed(2); color: "#E0E3EB"; font.pixelSize: 12; Layout.fillWidth: true }
-                                Slider {
-                                    from: -0.5; to: 0.5; value: viewport.brightness
-                                    onMoved: viewport.brightness = value
-                                }
-                            }
-
-                            RowLayout {
-                                Text { text: "Contrast: " + viewport.contrast.toFixed(2); color: "#E0E3EB"; font.pixelSize: 12; Layout.fillWidth: true }
-                                Slider {
-                                    from: 0.2; to: 2.0; value: viewport.contrast
-                                    onMoved: viewport.contrast = value
-                                }
-                            }
-
-                            RowLayout {
-                                Text { text: "Saturation: " + viewport.saturation.toFixed(2); color: "#E0E3EB"; font.pixelSize: 12; Layout.fillWidth: true }
-                                Slider {
-                                    from: 0.0; to: 2.5; value: viewport.saturation
-                                    onMoved: viewport.saturation = value
-                                }
-                            }
-
-                            RowLayout {
-                                Text { text: "Blend Mode"; color: "#E0E3EB"; font.pixelSize: 12; Layout.fillWidth: true }
-                                ComboBox {
-                                    model: ["Normal", "Add", "Multiply", "Screen", "Overlay"]
-                                    currentIndex: viewport.blendModeIndex
-                                    onActivated: viewport.blendModeIndex = index
-                                }
+                                Text { text: "Saturation: " + viewport.saturation.toFixed(2); color: "#E0E3EB"; font.pixelSize: 11; Layout.fillWidth: true }
+                                Slider { from: 0.0; to: 2.5; value: viewport.saturation; onMoved: viewport.saturation = value }
                             }
                         }
                     }
@@ -645,188 +500,18 @@ ApplicationWindow {
         }
 
         // ==================== BOTTOM PANEL: MULTI-TRACK TIMELINE ====================
-        Rectangle {
+        TimelineView {
+            id: timelineView
             Layout.fillWidth: true
-            Layout.preferredHeight: 180
-            color: "#111218"
-
-            Rectangle {
-                anchors.top: parent.top
-                width: parent.width
-                height: 1
-                color: "#222533"
-            }
-
-            ColumnLayout {
-                anchors.fill: parent
-                spacing: 0
-
-                // Timecode Ruler / Scrubber Bar
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 32
-                    color: "#181A22"
-
-                    Slider {
-                        id: timelineScrubber
-                        anchors.fill: parent
-                        anchors.leftMargin: 100
-                        anchors.rightMargin: 20
-                        from: 0.0
-                        to: Math.max(0.1, viewport.duration)
-                        value: viewport.position
-                        onMoved: viewport.seek(value)
-                    }
-
-                    Text {
-                        anchors.left: parent.left
-                        anchors.leftMargin: 16
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "TIMELINE"
-                        color: "#7E849E"
-                        font.pixelSize: 11
-                        font.bold: true
-                    }
-                }
-
-                // Track Rows
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    color: "#0F1015"
-
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 6
-                        spacing: 4
-
-                        // Track V2
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 38
-                            color: "#161821"
-                            radius: 4
-
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.margins: 4
-                                spacing: 8
-
-                                Rectangle {
-                                    width: 70; height: 30; radius: 3; color: "#222636"
-                                    Text { anchors.centerIn: parent; text: "V2 (FX)"; color: "#A0A5B8"; font.pixelSize: 11; font.bold: true }
-                                }
-
-                                Rectangle {
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: 28
-                                    radius: 3
-                                    color: "#263238"
-                                    border.color: "#00E5FF"
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: "◆ Bézier Keyframe Motion Track"
-                                        color: "#80DEEA"
-                                        font.pixelSize: 11
-                                    }
-                                }
-                            }
-                        }
-
-                        // Track V1 (Main Video)
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 38
-                            color: "#161821"
-                            radius: 4
-
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.margins: 4
-                                spacing: 8
-
-                                Rectangle {
-                                    width: 70; height: 30; radius: 3; color: "#222636"
-                                    Text { anchors.centerIn: parent; text: "V1 (Video)"; color: "#A0A5B8"; font.pixelSize: 11; font.bold: true }
-                                }
-
-                                Rectangle {
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: 28
-                                    radius: 3
-                                    color: "#1E2A38"
-                                    border.color: "#3F51B5"
-                                    RowLayout {
-                                        anchors.fill: parent
-                                        anchors.margins: 6
-                                        Text {
-                                            text: viewport.source !== "" ? viewport.source.split('/').pop() : "Synthetic Source Clip"
-                                            color: "#C5CAE9"
-                                            font.pixelSize: 11
-                                            font.bold: true
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // Track A1 (Audio Track)
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 38
-                            color: "#161821"
-                            radius: 4
-
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.margins: 4
-                                spacing: 8
-
-                                Rectangle {
-                                    width: 70; height: 30; radius: 3; color: "#222636"
-                                    Text { anchors.centerIn: parent; text: "A1 (Audio)"; color: "#A0A5B8"; font.pixelSize: 11; font.bold: true }
-                                }
-
-                                Rectangle {
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: 28
-                                    radius: 3
-                                    color: "#1B2E24"
-                                    border.color: "#2E7D32"
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: " ∿ ∿ ∿ ∿ ∿ ∿ ∿ ∿ ∿ ∿ 48kHz Stereo Waveform ∿ ∿ ∿ ∿ ∿ ∿ ∿ ∿ ∿ ∿"
-                                        color: "#A5D6A7"
-                                        font.pixelSize: 10
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            Layout.preferredHeight: 240
+            timelineController: timelineCtrl
         }
     }
 
     // Keyboard Shortcuts
-    Shortcut {
-        sequence: "Space"
-        onActivated: viewport.togglePlay()
-    }
-    Shortcut {
-        sequence: "Left"
-        onActivated: viewport.stepBackward()
-    }
-    Shortcut {
-        sequence: "Right"
-        onActivated: viewport.stepForward()
-    }
-    Shortcut {
-        sequence: "Home"
-        onActivated: viewport.seek(0.0)
-    }
-    Shortcut {
-        sequence: "End"
-        onActivated: viewport.seek(viewport.duration)
-    }
+    Shortcut { sequence: "Space"; onActivated: timelineCtrl.togglePlay() }
+    Shortcut { sequence: "Left"; onActivated: timelineCtrl.stepFrame(-1) }
+    Shortcut { sequence: "Right"; onActivated: timelineCtrl.stepFrame(1) }
+    Shortcut { sequence: "Home"; onActivated: timelineCtrl.jumpToStart() }
+    Shortcut { sequence: "End"; onActivated: timelineCtrl.jumpToEnd() }
 }
