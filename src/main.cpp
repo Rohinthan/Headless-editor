@@ -7,6 +7,7 @@
 #include <QUrl>
 #include <iostream>
 #include "ui/ViewportItem.hpp"
+#include "core/TimelineController.hpp"
 
 int main(int argc, char *argv[]) {
     // Configure OpenGL Surface Format for smooth rendering
@@ -19,11 +20,12 @@ int main(int argc, char *argv[]) {
     QSurfaceFormat::setDefaultFormat(format);
 
     QGuiApplication app(argc, argv);
-    app.setApplicationName("Antigravity NLE Core");
+    app.setApplicationName("Headless-Editor");
     app.setOrganizationName("Antigravity Systems");
 
-    // Register C++ ViewportItem to QML
+    // Register C++ Types to QML
     qmlRegisterType<antigravity::ui::ViewportItem>("Antigravity.Video", 1, 0, "ViewportItem");
+    qmlRegisterType<antigravity::core::TimelineController>("Antigravity.Video", 1, 0, "TimelineController");
 
     QQmlApplicationEngine engine;
 
