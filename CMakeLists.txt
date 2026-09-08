@@ -39,10 +39,11 @@ link_directories(
 # Locate Qt 6
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick OpenGL)
 
-# Locate PkgConfig, FFmpeg, and VA-API
+# Locate PkgConfig, FFmpeg, VA-API, and PipeWire
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET libavcodec libavformat libavutil libswscale libswresample)
 pkg_check_modules(LIBVA IMPORTED_TARGET libva libva-drm)
+pkg_check_modules(PIPEWIRE REQUIRED IMPORTED_TARGET libpipewire-0.3)
 
 # Locate OpenGL
 find_package(OpenGL REQUIRED)
@@ -51,6 +52,10 @@ find_package(OpenGL REQUIRED)
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     $ENV{HOME}/.local/usr/include
+    $ENV{HOME}/.local/usr/include/pipewire-0.3
+    $ENV{HOME}/.local/usr/include/spa-0.2
+    /usr/include/pipewire-0.3
+    /usr/include/spa-0.2
 )
 
 # ----------------------------------------------------
@@ -96,13 +101,38 @@ target_compile_definitions(cli_test_compositor PRIVATE
 )
 
 # ----------------------------------------------------
-# Target 3: Video Editor GUI Application
+# Target 3: Headless CLI PipeWire Audio & A/V Sync Tool
+# ----------------------------------------------------
+add_executable(cli_test_audio_sync
+    tests/cli_test_audio_sync.cpp
+    src/core/AudioEngine.cpp
+    src/core/TimelineController.cpp
+    src/core/DecoderEngine.cpp
+)
+
+target_link_libraries(cli_test_audio_sync PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    PkgConfig::PIPEWIRE
+    PkgConfig::FFMPEG
+    $<$<BOOL:${LIBVA_FOUND}>:PkgConfig::LIBVA>
+    Threads::Threads
+)
+
+target_compile_definitions(cli_test_audio_sync PRIVATE
+    SRC_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+)
+
+# ----------------------------------------------------
+# Target 4: Video Editor GUI Application
 # ----------------------------------------------------
 add_executable(video_editor
     src/main.cpp
     src/core/DecoderEngine.cpp
     src/core/GraphEngine.cpp
     src/core/GPUEngine.cpp
+    src/core/AudioEngine.cpp
+    src/core/TimelineController.cpp
     src/ui/ViewportItem.cpp
 )
 
@@ -111,6 +141,7 @@ target_link_libraries(video_editor PRIVATE
     Qt6::Gui
     Qt6::Quick
     Qt6::OpenGL
+    PkgConfig::PIPEWIRE
     PkgConfig::FFMPEG
     $<$<BOOL:${LIBVA_FOUND}>:PkgConfig::LIBVA>
     OpenGL::GL
