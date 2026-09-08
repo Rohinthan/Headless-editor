@@ -1,6 +1,6 @@
 # Headless-Editor ⚡
 
-A high-performance, lightweight Linux Video Editor core and GPU Compositing Engine implemented in **C++20**, **OpenGL / GLSL**, **Qt 6 (QML)**, and **FFmpeg**. Built for hardware-accelerated video decoding (VA-API / CUDA), multi-layer GPU ping-pong compositing, 4x4 matrix affine transformations, cubic Bézier keyframe animation, and real-time preview viewport rendering.
+A high-performance, lightweight Linux Video Editor core, GPU Compositing Engine, and Native PipeWire Audio Playback Subsystem implemented in **C++20**, **OpenGL / GLSL**, **PipeWire API**, **Qt 6 (QML)**, and **FFmpeg**. Built for hardware-accelerated video decoding (VA-API / CUDA), multi-layer GPU ping-pong compositing, 4x4 matrix transformations, cubic Bézier keyframe animation, low-latency 48kHz audio rendering, and master clock A/V synchronization.
 
 ---
 
@@ -8,14 +8,17 @@ A high-performance, lightweight Linux Video Editor core and GPU Compositing Engi
 
 - **🚀 Hardware-Accelerated Decoding:** Automatic probe and initialization for `VA-API` and `CUDA` zero-copy decoding via FFmpeg with graceful multi-threaded CPU software fallback.
 - **⚡ Multi-Layer GPU Compositor (`GPUEngine`):** Offscreen Framebuffer Object (FBO) ping-pong renderer to process unbounded video layer stacks sequentially on GPU.
+- **🔊 Native PipeWire Low-Latency Audio (`AudioEngine`):** Real-time stereo float 48kHz (`SPA_AUDIO_FORMAT_F32`) output stream powered by `pw_thread_loop`, `libswresample`, and a lock-free SPSC ring buffer (~10.67 ms buffer latency).
+- **⏱️ Master Clock & Frame-Accurate A/V Sync (`TimelineController`):** Precision clock synchronization driven by hardware audio PTS with fallback to monotonic system clock. Exact SMPTE timecode generation (`HH:MM:SS:FF`) and variable rate shuttle scrubbing (1x, 2x, 4x, -1x).
+- **🎛️ Interactive Multi-Track QML Timeline:** Track lanes (`V2`, `V1`, `A1`, `A2`, `FX1`), draggable and trimmable clips, waveform visualization, and inline cubic Bézier curve overlays with draggable `KeyframeHandle` nodes.
 - **📐 4x4 Hardware Matrix Transformations:** Real-time affine matrix evaluation per layer:
   $$M = T(x, y) \cdot R(\theta) \cdot S(s_x, s_y) \cdot T(-a_x, -a_y)$$
-- **🎨 Custom GLSL Effect & Blend Shaders:** Vectorized GLSL blend implementations (*Normal, Add, Multiply, Screen, Overlay, Soft Light, Color Dodge*) and 3-way Lift/Gamma/Gain + Exposure/Saturation color grading.
-- **📈 Cubic Bézier Keyframe Interpolation:** Mathematical cubic Bézier curve evaluation ($P(t) = (1-t)^3 P_0 + 3(1-t)^2 t P_1 + 3(1-t) t^2 P_2 + t^3 P_3$) with Newton-Raphson solver for smooth easing curves.
+- **🎨 Custom GLSL Shaders:** Vectorized blend modes (*Normal, Add, Multiply, Screen, Overlay, Soft Light, Color Dodge*) and 3-way Lift/Gamma/Gain color grading.
 - **🖥️ Qt 6 Scene Graph Viewport:** High-throughput `QQuickItem` viewport bridge rendering decoded frames and GPU composites directly within the Qt Quick scene graph.
 - **📊 Headless Diagnostic CLIs:**
   - `cli_test_decoder`: Video decoding throughput (FPS), seek latency profiling, and RAM leak verification.
   - `cli_test_compositor`: Headless offscreen GPU multi-layer compositing benchmark for 1080p and 4K UHD workloads.
+  - `cli_test_audio_sync`: Native PipeWire buffer latency, libswresample verification, and master clock A/V drift benchmark.
 
 ---
 
@@ -34,7 +37,11 @@ A high-performance, lightweight Linux Video Editor core and GPU Compositing Engi
 │   │   ├── GraphEngine.hpp     # DAG composition & cubic Bézier keyframes
 │   │   ├── GraphEngine.cpp     # Topological sorting & software rasterizer
 │   │   ├── GPUEngine.hpp       # GPU ping-pong FBOs & 4x4 matrix math
-│   │   └── GPUEngine.cpp       # GLSL shader manager & multi-layer compositor
+│   │   ├── GPUEngine.cpp       # GLSL shader manager & multi-layer compositor
+│   │   ├── AudioEngine.hpp     # Native PipeWire stream & lock-free ring buffer
+│   │   ├── AudioEngine.cpp     # libswresample 48kHz audio resampler & feeder
+│   │   ├── TimelineController.hpp # Master clock sync & SMPTE timecode
+│   │   └── TimelineController.cpp # Transport state & A/V drift tracking
 │   ├── shaders/
 │   │   ├── compositor.vert     # Layer matrix transformation vertex shader
 │   │   ├── blend_modes.frag    # Vectorized blend modes & Porter-Duff alpha
@@ -42,10 +49,15 @@ A high-performance, lightweight Linux Video Editor core and GPU Compositing Engi
 │   └── ui/
 │       ├── ViewportItem.hpp    # QQuickItem Scene Graph rendering bridge
 │       ├── ViewportItem.cpp    # Viewport paint node & playback controller
+│       ├── TimelineView.qml    # Master multi-track timeline container
+│       ├── TimelineTrack.qml   # Individual track lane (V1/V2/A1/A2/FX)
+│       ├── TimelineClip.qml    # Draggable/resizable clip item & waveform
+│       ├── KeyframeHandle.qml  # Interactive keyframe node for Bézier curves
 │       └── main.qml            # Responsive dark-themed NLE studio UI
 └── tests/
     ├── cli_test_decoder.cpp    # Headless decoder diagnostic & benchmark tool
-    └── cli_test_compositor.cpp # Headless GPU multi-layer compositing benchmark
+    ├── cli_test_compositor.cpp # Headless GPU multi-layer compositing benchmark
+    └── cli_test_audio_sync.cpp # Headless PipeWire audio & A/V sync benchmark
 ```
 
 ---
@@ -59,18 +71,19 @@ Ensure you have the required development packages installed:
 sudo apt update
 sudo apt install -y build-essential cmake ninja-build pkg-config \
     qt6-base-dev qt6-declarative-dev libavcodec-dev libavformat-dev \
-    libavutil-dev libswscale-dev libswresample-dev libva-dev libgl-dev
+    libavutil-dev libswscale-dev libswresample-dev libva-dev libgl-dev \
+    libpipewire-0.3-dev libspa-0.2-dev
 ```
 
 ### Arch Linux
 ```bash
-sudo pacman -S base-devel cmake ninja pkgconf qt6-base qt6-declarative ffmpeg libva
+sudo pacman -S base-devel cmake ninja pkgconf qt6-base qt6-declarative ffmpeg libva pipewire
 ```
 
 ### Fedora / RHEL
 ```bash
 sudo dnf install -y gcc-c++ cmake ninja-build pkgconfig \
-    qt6-qtbase-devel qt6-qtdeclarative-devel ffmpeg-free-devel libva-devel
+    qt6-qtbase-devel qt6-qtdeclarative-devel ffmpeg-free-devel libva-devel pipewire-devel
 ```
 
 ---
@@ -89,14 +102,25 @@ ninja -C build
 
 ## 🚀 Running
 
-### 1. Headless GPU Multi-Layer Compositing Benchmark
+### 1. PipeWire Audio & Master Clock A/V Sync Benchmark
+Test PipeWire low-latency stream creation, resampler throughput, and sub-frame clock alignment:
+
+```bash
+# Run with synthetic 48kHz sine tone:
+./build/cli_test_audio_sync
+
+# Or benchmark with an audio/video media file:
+./build/cli_test_audio_sync /path/to/media.mp4 --duration 5.0
+```
+
+### 2. Headless GPU Multi-Layer Compositing Benchmark
 Run offscreen GPU benchmarks across 1080p and 4K UHD 5-layer compositing workloads:
 
 ```bash
 ./build/cli_test_compositor
 ```
 
-### 2. Headless Decoder Diagnostic & Benchmark
+### 3. Headless Decoder Diagnostic & Benchmark
 Run hardware decoder performance benchmarks directly from your terminal:
 
 ```bash
@@ -107,7 +131,7 @@ Run hardware decoder performance benchmarks directly from your terminal:
 ./build/cli_test_decoder /path/to/video.mp4 --frames 500
 ```
 
-### 3. Video Editor GUI Application
+### 4. Video Editor GUI Application
 Launch the NLE workspace:
 
 ```bash
