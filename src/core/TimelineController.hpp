@@ -4,15 +4,18 @@
 #include <QTimer>
 #include <QElapsedTimer>
 #include <QString>
+#include <QProcess>
 #include "AudioEngine.hpp"
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace antigravity::core {
 
 class TimelineController : public QObject {
     Q_OBJECT
 
+    // Core Transport Properties
     Q_PROPERTY(double position READ position WRITE setPosition NOTIFY positionChanged)
     Q_PROPERTY(double duration READ duration WRITE setDuration NOTIFY durationChanged)
     Q_PROPERTY(bool isPlaying READ isPlaying NOTIFY isPlayingChanged)
@@ -25,6 +28,18 @@ class TimelineController : public QObject {
     Q_PROPERTY(bool isMuted READ isMuted WRITE setMuted NOTIFY isMutedChanged)
     Q_PROPERTY(double inPoint READ inPoint WRITE setInPoint NOTIFY inPointChanged)
     Q_PROPERTY(double outPoint READ outPoint WRITE setOutPoint NOTIFY outPointChanged)
+
+    // Project Properties
+    Q_PROPERTY(QString projectName READ projectName WRITE setProjectName NOTIFY projectChanged)
+    Q_PROPERTY(QString aspectRatio READ aspectRatio WRITE setAspectRatio NOTIFY projectChanged)
+    Q_PROPERTY(int canvasWidth READ canvasWidth WRITE setCanvasWidth NOTIFY projectChanged)
+    Q_PROPERTY(int canvasHeight READ canvasHeight WRITE setCanvasHeight NOTIFY projectChanged)
+    Q_PROPERTY(QString backgroundColor READ backgroundColor WRITE setBackgroundColor NOTIFY projectChanged)
+
+    // Export State Properties
+    Q_PROPERTY(bool isExporting READ isExporting NOTIFY exportStateChanged)
+    Q_PROPERTY(double exportProgress READ exportProgress NOTIFY exportProgressChanged)
+    Q_PROPERTY(QString exportStatus READ exportStatus NOTIFY exportStateChanged)
 
 public:
     explicit TimelineController(QObject *parent = nullptr);
@@ -64,6 +79,27 @@ public:
     double outPoint() const { return out_point_; }
     void setOutPoint(double pt);
 
+    // Project Info Accessors
+    QString projectName() const { return project_name_; }
+    void setProjectName(const QString& name);
+
+    QString aspectRatio() const { return aspect_ratio_; }
+    void setAspectRatio(const QString& aspect);
+
+    int canvasWidth() const { return canvas_width_; }
+    void setCanvasWidth(int w);
+
+    int canvasHeight() const { return canvas_height_; }
+    void setCanvasHeight(int h);
+
+    QString backgroundColor() const { return background_color_; }
+    void setBackgroundColor(const QString& color);
+
+    // Export Accessors
+    bool isExporting() const { return is_exporting_; }
+    double exportProgress() const { return export_progress_; }
+    QString exportStatus() const { return export_status_; }
+
     // Audio Engine Binding
     void setAudioEngine(std::shared_ptr<AudioEngine> audio_engine);
     std::shared_ptr<AudioEngine> audioEngine() const { return audio_engine_; }
@@ -77,6 +113,32 @@ public:
     Q_INVOKABLE void setShuttleRate(double rate);
     Q_INVOKABLE void jumpToStart();
     Q_INVOKABLE void jumpToEnd();
+
+    // Q_INVOKABLE Project Creation API
+    Q_INVOKABLE void createProject(
+        const QString& name,
+        const QString& aspect,
+        int width,
+        int height,
+        double fps,
+        const QString& bgColor
+    );
+
+    // Q_INVOKABLE Clip Editing Operations (Cut, Split, Duplicate, Delete)
+    Q_INVOKABLE void splitClipAtPlayhead(const QString& clipId);
+    Q_INVOKABLE void duplicateClip(const QString& clipId);
+    Q_INVOKABLE void deleteClip(const QString& clipId);
+
+    // Q_INVOKABLE Export Rendering API
+    Q_INVOKABLE void startExport(
+        const QString& outputPath,
+        const QString& format,
+        int width,
+        int height,
+        double fps,
+        int bitrateKbps
+    );
+    Q_INVOKABLE void cancelExport();
 
 signals:
     void positionChanged();
@@ -92,8 +154,21 @@ signals:
     void outPointChanged();
     void frameStepped(int current_frame);
 
+    // Project & Clip Signals
+    void projectChanged();
+    void clipSplitRequested(const QString& clipId, double splitTimestamp);
+    void clipDuplicateRequested(const QString& clipId);
+    void clipDeleteRequested(const QString& clipId);
+
+    // Export Signals
+    void exportStateChanged();
+    void exportProgressChanged();
+    void exportCompleted(bool success, const QString& message);
+
 private slots:
     void onClockTick();
+    void onExportProcessReadyRead();
+    void onExportProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);
 
 private:
     void updateClock();
@@ -111,6 +186,20 @@ private:
 
     double audio_latency_ms_ = 0.0;
     double av_drift_ms_ = 0.0;
+
+    // Project State
+    QString project_name_ = "New Project";
+    QString aspect_ratio_ = "16:9";
+    int canvas_width_ = 1920;
+    int canvas_height_ = 1080;
+    QString background_color_ = "#000000";
+
+    // Export State
+    bool is_exporting_ = false;
+    double export_progress_ = 0.0;
+    QString export_status_ = "Idle";
+    std::unique_ptr<QProcess> export_process_;
+    double export_target_duration_ = 0.0;
 
     std::shared_ptr<AudioEngine> audio_engine_;
 
