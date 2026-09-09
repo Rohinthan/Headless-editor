@@ -11,13 +11,13 @@ ApplicationWindow {
     height: 900
     minimumWidth: 1024
     minimumHeight: 700
-    title: "Headless-Editor — Linux Native Video & Audio NLE Core"
+    title: "Headless-Editor — " + timelineCtrl.projectName + " (" + timelineCtrl.aspectRatio + ")"
     color: "#0F1015"
 
     TimelineController {
         id: timelineCtrl
-        fps: 30.0
-        duration: viewport.duration > 0 ? viewport.duration : 30.0
+        fps: 60.0
+        duration: viewport.duration > 0 ? viewport.duration : 14.0
         onPositionChanged: {
             if (Math.abs(viewport.position - timelineCtrl.position) > 0.05) {
                 viewport.position = timelineCtrl.position
@@ -33,6 +33,21 @@ ApplicationWindow {
             viewport.openFile(fileDialog.selectedFile.toString())
             timelineCtrl.setDuration(viewport.duration)
         }
+    }
+
+    // ==================== NEW PROJECT DIALOG (1.jpeg reference) ====================
+    NewProjectDialog {
+        id: newProjectDialog
+        timelineController: timelineCtrl
+        onProjectCreated: function(name, aspect, width, height, fps, bgColor) {
+            viewport.resetTransformEffects()
+        }
+    }
+
+    // ==================== EXPORT DIALOG ====================
+    ExportDialog {
+        id: exportDialog
+        timelineController: timelineCtrl
     }
 
     ColumnLayout {
@@ -58,44 +73,48 @@ ApplicationWindow {
                 anchors.rightMargin: 16
                 spacing: 14
 
-                // Branding
+                // Branding & Project Name
                 RowLayout {
                     spacing: 8
                     Rectangle {
-                        width: 24
-                        height: 24
+                        width: 26
+                        height: 26
                         radius: 6
                         gradient: Gradient {
                             GradientStop { position: 0.0; color: "#00E5FF" }
-                            GradientStop { position: 1.0; color: "#7C4DFF" }
+                            GradientStop { position: 1.0; color: "#00E676" }
                         }
                         Text {
                             anchors.centerIn: parent
                             text: "▲"
                             color: "#FFFFFF"
                             font.bold: true
-                            font.pixelSize: 12
+                            font.pixelSize: 13
                         }
                     }
 
                     Text {
                         text: "HEADLESS-EDITOR"
                         color: "#FFFFFF"
-                        font.pixelSize: 15
+                        font.pixelSize: 14
                         font.bold: true
                         font.letterSpacing: 1.5
                     }
 
+                    // Project Aspect Tag
                     Rectangle {
-                        width: 48
-                        height: 18
+                        height: 20
+                        Layout.preferredWidth: aspectTagText.contentWidth + 14
                         radius: 4
-                        color: "#2A2D3D"
+                        color: "#202538"
+                        border.color: "#00E5FF"
+                        border.width: 1
                         Text {
+                            id: aspectTagText
                             anchors.centerIn: parent
-                            text: "AUDIO+"
-                            color: "#00E676"
-                            font.pixelSize: 9
+                            text: timelineCtrl.projectName + " [" + timelineCtrl.aspectRatio + "]"
+                            color: "#00E5FF"
+                            font.pixelSize: 10
                             font.bold: true
                         }
                     }
@@ -103,7 +122,25 @@ ApplicationWindow {
 
                 Rectangle { width: 1; height: 24; color: "#2E3245" }
 
-                // Actions
+                // Actions: New Project (+), Open Media (📁), Export (🚀)
+                Button {
+                    text: "+ New Project"
+                    contentItem: Text {
+                        text: parent.text
+                        color: "#00E5FF"
+                        font.pixelSize: 12
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    background: Rectangle {
+                        color: parent.hovered ? "#1C2E3D" : "#192230"
+                        radius: 6
+                        border.color: "#00E5FF"
+                    }
+                    onClicked: newProjectDialog.visible = true
+                }
+
                 Button {
                     text: "📁 Open Media"
                     contentItem: Text {
@@ -123,19 +160,20 @@ ApplicationWindow {
                 }
 
                 Button {
-                    text: "⟲ Reset FX"
+                    text: "🚀 Export Composition"
                     contentItem: Text {
                         text: parent.text
-                        color: "#A0A5B8"
+                        color: "#FFFFFF"
                         font.pixelSize: 12
+                        font.bold: true
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
                     background: Rectangle {
-                        color: parent.hovered ? "#2A2D3D" : "transparent"
+                        color: parent.hovered ? "#00C853" : "#00E676"
                         radius: 6
                     }
-                    onClicked: viewport.resetTransformEffects()
+                    onClicked: exportDialog.visible = true
                 }
 
                 Item { Layout.fillWidth: true }
@@ -152,32 +190,14 @@ ApplicationWindow {
                     RowLayout {
                         anchors.centerIn: parent
                         spacing: 6
-                        Rectangle {
-                            width: 8; height: 8; radius: 4; color: "#00E676"
-                        }
+                        Rectangle { width: 8; height: 8; radius: 4; color: "#00E676" }
                         Text {
                             id: hwStatusText
-                            text: "⚡ PipeWire 48kHz (Low-Latency) + VA-API Active"
+                            text: "⚡ PipeWire 48kHz + VA-API HW Decode"
                             color: "#B9F6CA"
                             font.pixelSize: 11
                             font.bold: true
                         }
-                    }
-                }
-
-                // Audio Latency & Drift Telemetry
-                Rectangle {
-                    height: 28
-                    Layout.preferredWidth: 170
-                    radius: 6
-                    color: "#1B1E2B"
-                    border.color: "#2E3245"
-                    Text {
-                        anchors.centerIn: parent
-                        text: "Audio Latency: " + timelineCtrl.audioLatencyMs.toFixed(1) + "ms | A/V: ±0.0ms"
-                        color: "#9EA3B8"
-                        font.pixelSize: 10
-                        font.family: "Monospace"
                     }
                 }
             }
@@ -189,7 +209,7 @@ ApplicationWindow {
             Layout.fillHeight: true
             spacing: 0
 
-            // ---------------- LEFT PANEL ----------------
+            // ---------------- LEFT PANEL: PROJECT MEDIA & AUDIO ----------------
             Rectangle {
                 Layout.preferredWidth: 260
                 Layout.fillHeight: true
@@ -208,7 +228,7 @@ ApplicationWindow {
                     spacing: 12
 
                     Text {
-                        text: "AUDIO & MEDIA POOL"
+                        text: "PROJECT ASSETS"
                         color: "#7E849E"
                         font.pixelSize: 11
                         font.bold: true
@@ -238,7 +258,7 @@ ApplicationWindow {
                                 spacing: 2
                                 Layout.fillWidth: true
                                 Text {
-                                    text: viewport.source !== "" ? viewport.source.split('/').pop() : "Synthetic 48kHz Source"
+                                    text: viewport.source !== "" ? viewport.source.split('/').pop() : timelineCtrl.projectName
                                     color: "#FFFFFF"
                                     font.pixelSize: 12
                                     font.bold: true
@@ -246,13 +266,13 @@ ApplicationWindow {
                                     Layout.fillWidth: true
                                 }
                                 Text {
-                                    text: "Stereo Float • 48000 Hz"
+                                    text: timelineCtrl.aspectRatio + " • " + timelineCtrl.fps + " fps"
                                     color: "#00E676"
                                     font.pixelSize: 10
                                     font.family: "Monospace"
                                 }
                                 Text {
-                                    text: "Master Clock: Active"
+                                    text: timelineCtrl.canvasWidth + " x " + timelineCtrl.canvasHeight
                                     color: "#80DEEA"
                                     font.pixelSize: 10
                                 }
@@ -260,9 +280,9 @@ ApplicationWindow {
                         }
                     }
 
-                    // Volume & Master Audio Controls
+                    // Master Volume
                     Text {
-                        text: "MASTER AUDIO CONTROLS"
+                        text: "AUDIO MONITOR"
                         color: "#7E849E"
                         font.pixelSize: 11
                         font.bold: true
@@ -318,15 +338,25 @@ ApplicationWindow {
                     anchors.fill: parent
                     spacing: 0
 
-                    // Viewport Monitor
+                    // Viewport Monitor Area
                     Item {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
 
-                        ViewportItem {
-                            id: viewport
-                            anchors.fill: parent
-                            focus: true
+                        // Canvas Container (Supports 16:9 Landscape or 9:16 Portrait from for editing line .jpeg)
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: timelineCtrl.aspectRatio === "9:16" ? Math.min(parent.height * (9.0/16.0), parent.width) : Math.min(parent.width, parent.height * (16.0/9.0))
+                            height: timelineCtrl.aspectRatio === "9:16" ? Math.min(parent.height, parent.width * (16.0/9.0)) : Math.min(parent.height, parent.width * (9.0/16.0))
+                            color: timelineCtrl.backgroundColor
+                            border.color: "#2C3044"
+                            border.width: 1
+
+                            ViewportItem {
+                                id: viewport
+                                anchors.fill: parent
+                                focus: true
+                            }
                         }
 
                         // Timecode HUD
@@ -334,7 +364,7 @@ ApplicationWindow {
                             anchors.top: parent.top
                             anchors.left: parent.left
                             anchors.margins: 14
-                            height: 32
+                            height: 30
                             width: tcRow.width + 20
                             radius: 6
                             color: "#CC0B0C10"
@@ -344,72 +374,14 @@ ApplicationWindow {
                                 id: tcRow
                                 anchors.centerIn: parent
                                 spacing: 8
-                                Text { text: "MASTER"; color: "#00E676"; font.pixelSize: 10; font.bold: true }
+                                Text { text: "SMPTE"; color: "#00E676"; font.pixelSize: 10; font.bold: true }
                                 Text {
                                     text: timelineCtrl.timecode
-                                    color: "#00E5FF"
-                                    font.pixelSize: 14
+                                    color: "#FFFFFF"
+                                    font.pixelSize: 13
                                     font.bold: true
                                     font.family: "Monospace"
                                 }
-                            }
-                        }
-                    }
-
-                    // Transport Control Bar
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 52
-                        color: "#14161F"
-                        border.color: "#232636"
-                        border.width: 1
-
-                        RowLayout {
-                            anchors.centerIn: parent
-                            spacing: 12
-
-                            Button {
-                                text: "⏮"
-                                font.pixelSize: 14
-                                onClicked: timelineCtrl.jumpToStart()
-                            }
-
-                            Button {
-                                text: "◀ -1F"
-                                font.pixelSize: 11
-                                onClicked: timelineCtrl.stepFrame(-1)
-                            }
-
-                            Button {
-                                text: timelineCtrl.isPlaying ? "⏸ PAUSE" : "▶ PLAY"
-                                font.pixelSize: 13
-                                font.bold: true
-                                contentItem: Text {
-                                    text: parent.text
-                                    color: timelineCtrl.isPlaying ? "#FFAB00" : "#00E5FF"
-                                    font.pixelSize: 13
-                                    font.bold: true
-                                    horizontalAlignment: Text.AlignHCenter
-                                    verticalAlignment: Text.AlignVCenter
-                                }
-                                background: Rectangle {
-                                    color: "#1F2333"
-                                    radius: 6
-                                    border.color: timelineCtrl.isPlaying ? "#FFAB00" : "#00E5FF"
-                                }
-                                onClicked: timelineCtrl.togglePlay()
-                            }
-
-                            Button {
-                                text: "+1F ▶"
-                                font.pixelSize: 11
-                                onClicked: timelineCtrl.stepFrame(1)
-                            }
-
-                            Button {
-                                text: "⏭"
-                                font.pixelSize: 14
-                                onClicked: timelineCtrl.jumpToEnd()
                             }
                         }
                     }
@@ -418,7 +390,7 @@ ApplicationWindow {
 
             // ---------------- RIGHT PANEL: INSPECTOR ----------------
             Rectangle {
-                Layout.preferredWidth: 300
+                Layout.preferredWidth: 280
                 Layout.fillHeight: true
                 color: "#13141C"
 
@@ -439,14 +411,13 @@ ApplicationWindow {
                         spacing: 16
 
                         Text {
-                            text: "GPU & TRANSFORM INSPECTOR"
+                            text: "TRANSFORM CONTROLS"
                             color: "#7E849E"
                             font.pixelSize: 11
                             font.bold: true
                             font.letterSpacing: 1.0
                         }
 
-                        // Transform Sliders
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 8
@@ -503,8 +474,10 @@ ApplicationWindow {
         TimelineView {
             id: timelineView
             Layout.fillWidth: true
-            Layout.preferredHeight: 240
+            Layout.preferredHeight: 280
             timelineController: timelineCtrl
+            onRequestExport: exportDialog.visible = true
+            onRequestNewProject: newProjectDialog.visible = true
         }
     }
 
@@ -514,4 +487,7 @@ ApplicationWindow {
     Shortcut { sequence: "Right"; onActivated: timelineCtrl.stepFrame(1) }
     Shortcut { sequence: "Home"; onActivated: timelineCtrl.jumpToStart() }
     Shortcut { sequence: "End"; onActivated: timelineCtrl.jumpToEnd() }
+    Shortcut { sequence: "Ctrl+N"; onActivated: newProjectDialog.visible = true }
+    Shortcut { sequence: "Ctrl+E"; onActivated: exportDialog.visible = true }
+    Shortcut { sequence: "Ctrl+K"; onActivated: timelineCtrl.splitClipAtPlayhead("clip_main") }
 }
