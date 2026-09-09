@@ -6,18 +6,25 @@ Rectangle {
     id: root
 
     property string trackId: "track_v1"
-    property string trackName: "V1 Video"
-    property string trackType: "video" // "video", "audio", "fx"
+    property string trackName: "Group 1"
+    property string trackType: "video" // "video", "audio", "fx", "text"
     property bool isMuted: false
     property bool isSolo: false
     property bool isLocked: false
-    property color trackAccent: trackType === "video" ? "#00E5FF" : (trackType === "audio" ? "#00E676" : "#E040FB")
+    property string trackIcon: "▶"
+    property color trackAccent: {
+        if (trackType === "video") return "#54A0FF"
+        if (trackType === "audio") return "#1DD1A1"
+        if (trackType === "fx") return "#FF6E6A"
+        if (trackType === "text") return "#FECA57"
+        return "#48DBFB"
+    }
     property double pixelsPerSecond: 100.0
 
     default property alias clips: clipContainer.children
 
-    height: 64
-    color: "#151720"
+    height: 60
+    color: "#161822"
     border.color: "#212433"
     border.width: 1
 
@@ -25,119 +32,53 @@ Rectangle {
         anchors.fill: parent
         spacing: 0
 
-        // Track Header Control Area
+        // Track Header (Matching video frams.avif left side badges)
         Rectangle {
-            Layout.preferredWidth: 140
+            Layout.preferredWidth: 90
             Layout.fillHeight: true
-            color: "#191B26"
-            border.color: "#242838"
+            color: "#13141E"
+            border.color: "#212433"
             border.width: 1
 
-            // Track Color Tag
-            Rectangle {
-                anchors.left: parent.left
-                anchors.top: parent.top
-                anchors.bottom: parent.bottom
-                width: 4
-                color: root.trackAccent
-            }
+            RowLayout {
+                anchors.centerIn: parent
+                spacing: 8
 
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 10
-                anchors.rightMargin: 6
-                anchors.topMargin: 6
-                anchors.bottomMargin: 6
-                spacing: 4
-
-                // Title & Type Badge
-                RowLayout {
-                    spacing: 6
-                    Rectangle {
-                        width: 24
-                        height: 18
-                        radius: 3
-                        color: Qt.darker(root.trackAccent, 2.0)
-                        border.color: root.trackAccent
-                        Text {
-                            anchors.centerIn: parent
-                            text: root.trackName.split(' ')[0]
-                            color: "#FFFFFF"
-                            font.pixelSize: 10
-                            font.bold: true
-                        }
-                    }
+                // Colorful Icon Badge (Matching video frams.avif)
+                Rectangle {
+                    width: 32
+                    height: 32
+                    radius: 8
+                    color: Qt.darker(root.trackAccent, 2.2)
+                    border.color: root.trackAccent
+                    border.width: 1.5
 
                     Text {
-                        text: root.trackName
-                        color: "#E2E5F0"
-                        font.pixelSize: 11
+                        anchors.centerIn: parent
+                        text: root.trackIcon
+                        color: root.trackAccent
+                        font.pixelSize: 14
                         font.bold: true
-                        elide: Text.ElideRight
-                        Layout.fillWidth: true
                     }
                 }
 
-                // Buttons: Mute, Solo, Lock
-                RowLayout {
-                    spacing: 4
+                // Mute Toggle Icon
+                Rectangle {
+                    width: 24
+                    height: 24
+                    radius: 6
+                    color: root.isMuted ? "#3D1B1B" : "#1C1F2D"
 
-                    Button {
-                        Layout.preferredWidth: 26
-                        Layout.preferredHeight: 22
-                        checkable: true
-                        checked: root.isMuted
-                        onClicked: root.isMuted = checked
-                        contentItem: Text {
-                            text: "M"
-                            color: parent.checked ? "#FF5252" : "#9E9E9E"
-                            font.pixelSize: 10
-                            font.bold: true
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
-                        background: Rectangle {
-                            color: parent.checked ? "#3E1B1B" : "#242838"
-                            radius: 3
-                        }
+                    Text {
+                        anchors.centerIn: parent
+                        text: root.isMuted ? "🔇" : "👁"
+                        font.pixelSize: 11
                     }
 
-                    Button {
-                        Layout.preferredWidth: 26
-                        Layout.preferredHeight: 22
-                        checkable: true
-                        checked: root.isSolo
-                        onClicked: root.isSolo = checked
-                        contentItem: Text {
-                            text: "S"
-                            color: parent.checked ? "#FFD600" : "#9E9E9E"
-                            font.pixelSize: 10
-                            font.bold: true
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
-                        background: Rectangle {
-                            color: parent.checked ? "#3E381B" : "#242838"
-                            radius: 3
-                        }
-                    }
-
-                    Button {
-                        Layout.preferredWidth: 26
-                        Layout.preferredHeight: 22
-                        checkable: true
-                        checked: root.isLocked
-                        onClicked: root.isLocked = checked
-                        contentItem: Text {
-                            text: "🔒"
-                            font.pixelSize: 9
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
-                        background: Rectangle {
-                            color: parent.checked ? "#2D3748" : "#242838"
-                            radius: 3
-                        }
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.isMuted = !root.isMuted
                     }
                 }
             }
@@ -150,14 +91,14 @@ Rectangle {
             Layout.fillHeight: true
             clip: true
 
-            // Track background grid lines
+            // Grid Background Lines
             Repeater {
-                model: Math.max(1, Math.floor(clipContainer.width / (root.pixelsPerSecond * 5)))
+                model: Math.max(1, Math.floor(clipContainer.width / (root.pixelsPerSecond * 2)))
                 Rectangle {
-                    x: index * (root.pixelsPerSecond * 5)
+                    x: index * (root.pixelsPerSecond * 2)
                     width: 1
                     height: parent.height
-                    color: "#1E2130"
+                    color: "#1C1F2B"
                 }
             }
         }
