@@ -11,77 +11,159 @@ Rectangle {
     property double playheadPosition: timelineController ? timelineController.position : 0.0
     property bool snappingEnabled: true
 
+    signal requestExport()
+    signal requestNewProject()
+
     color: "#0F1017"
 
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
 
-        // ==================== TIMELINE TOOLBAR ====================
+        // ==================== TOP TOOLBAR & TRANSPORT STRIP (Matching video frams.avif) ====================
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 38
-            color: "#161822"
-            border.color: "#212433"
+            Layout.preferredHeight: 44
+            color: "#161824"
+            border.color: "#232738"
             border.width: 1
 
             RowLayout {
                 anchors.fill: parent
                 anchors.leftMargin: 12
                 anchors.rightMargin: 12
-                spacing: 12
+                spacing: 14
 
-                Text {
-                    text: "TIMELINE TRACKS"
-                    color: "#7E849E"
-                    font.pixelSize: 11
-                    font.bold: true
-                    font.letterSpacing: 1.0
-                }
+                // Undo / Redo Group
+                RowLayout {
+                    spacing: 4
 
-                // Snap Toggle Button
-                Button {
-                    text: "🧲 SNAP"
-                    checkable: true
-                    checked: root.snappingEnabled
-                    onClicked: root.snappingEnabled = checked
-                    contentItem: Text {
-                        text: parent.text
-                        color: parent.checked ? "#00E5FF" : "#9E9E9E"
-                        font.pixelSize: 10
-                        font.bold: true
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
+                    Button {
+                        text: "↶"
+                        font.pixelSize: 15
+                        Layout.preferredWidth: 32; Layout.preferredHeight: 30
+                        contentItem: Text { text: parent.text; color: "#A0A5B8"; font.pixelSize: 15; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                        background: Rectangle { color: parent.hovered ? "#24283A" : "transparent"; radius: 6 }
                     }
-                    background: Rectangle {
-                        color: parent.checked ? "#1E2C3D" : "#1F222E"
-                        radius: 4
-                        border.color: parent.checked ? "#00E5FF" : "#2E3245"
+
+                    Button {
+                        text: "↷"
+                        font.pixelSize: 15
+                        Layout.preferredWidth: 32; Layout.preferredHeight: 30
+                        contentItem: Text { text: parent.text; color: "#A0A5B8"; font.pixelSize: 15; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                        background: Rectangle { color: parent.hovered ? "#24283A" : "transparent"; radius: 6 }
                     }
                 }
 
-                // In / Out Points HUD
-                Rectangle {
-                    height: 24
-                    Layout.preferredWidth: 160
-                    radius: 4
-                    color: "#191B26"
-                    border.color: "#282B3C"
+                Rectangle { width: 1; height: 22; color: "#2B2F44" }
 
-                    RowLayout {
-                        anchors.centerIn: parent
-                        spacing: 8
-                        Text {
-                            text: "IN: " + (root.timelineController ? root.timelineController.inPoint.toFixed(1) + "s" : "0.0s")
-                            color: "#00E676"
-                            font.pixelSize: 10
-                            font.family: "Monospace"
+                // Transport Controls: [|◀] [▶/⏸] [▶|]
+                RowLayout {
+                    spacing: 8
+
+                    Button {
+                        text: "◀"
+                        Layout.preferredWidth: 32; Layout.preferredHeight: 30
+                        contentItem: Text { text: parent.text; color: "#FFFFFF"; font.pixelSize: 13; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                        background: Rectangle { color: parent.hovered ? "#282C40" : "#1C2030"; radius: 6 }
+                        onClicked: if (root.timelineController) root.timelineController.stepFrame(-1)
+                    }
+
+                    Button {
+                        id: playBtn
+                        text: root.timelineController && root.timelineController.isPlaying ? "⏸" : "▶"
+                        Layout.preferredWidth: 40; Layout.preferredHeight: 32
+                        contentItem: Text {
+                            text: parent.text
+                            color: "#FFFFFF"
+                            font.pixelSize: 16
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
                         }
-                        Text {
-                            text: "OUT: " + (root.timelineController ? root.timelineController.outPoint.toFixed(1) + "s" : "30.0s")
-                            color: "#FF5252"
-                            font.pixelSize: 10
-                            font.family: "Monospace"
+                        background: Rectangle {
+                            color: playBtn.hovered ? "#00E5FF" : "#1E293B"
+                            radius: 8
+                            border.color: "#00E5FF"
+                            border.width: 1
+                        }
+                        onClicked: if (root.timelineController) root.timelineController.togglePlay()
+                    }
+
+                    Button {
+                        text: "▶"
+                        Layout.preferredWidth: 32; Layout.preferredHeight: 30
+                        contentItem: Text { text: parent.text; color: "#FFFFFF"; font.pixelSize: 13; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                        background: Rectangle { color: parent.hovered ? "#282C40" : "#1C2030"; radius: 6 }
+                        onClicked: if (root.timelineController) root.timelineController.stepFrame(1)
+                    }
+                }
+
+                Rectangle { width: 1; height: 22; color: "#2B2F44" }
+
+                // Quick Tools: Split/Cut (✂), Add Keyframe (+ ⟐), Bookmark (🔖)
+                RowLayout {
+                    spacing: 6
+
+                    Button {
+                        id: cutBtn
+                        text: "✂ CUT / SPLIT"
+                        Layout.preferredHeight: 30
+                        contentItem: Text {
+                            text: parent.text
+                            color: "#00E5FF"
+                            font.pixelSize: 11
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                        background: Rectangle {
+                            color: cutBtn.hovered ? "#1B3B48" : "#192434"
+                            radius: 6
+                            border.color: "#00E5FF"
+                            border.width: 1
+                        }
+                        onClicked: {
+                            if (root.timelineController) {
+                                root.timelineController.splitClipAtPlayhead("clip_main")
+                            }
+                        }
+                    }
+
+                    Button {
+                        text: "+ ⟐ KEYFRAME"
+                        Layout.preferredHeight: 30
+                        contentItem: Text {
+                            text: parent.text
+                            color: "#00E676"
+                            font.pixelSize: 11
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                        background: Rectangle {
+                            color: "#182C24"
+                            radius: 6
+                            border.color: "#00E676"
+                            border.width: 1
+                        }
+                    }
+
+                    Button {
+                        text: "🔖 MARKER"
+                        Layout.preferredHeight: 30
+                        contentItem: Text {
+                            text: parent.text
+                            color: "#FFD600"
+                            font.pixelSize: 11
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                        background: Rectangle {
+                            color: "#2C2818"
+                            radius: 6
+                            border.color: "#FFD600"
+                            border.width: 1
                         }
                     }
                 }
@@ -91,20 +173,31 @@ Rectangle {
                 // Zoom Level Controls
                 RowLayout {
                     spacing: 6
-                    Text { text: "Zoom:"; color: "#8C92A4"; font.pixelSize: 11 }
+                    Text { text: "🔍 Zoom:"; color: "#8C92A4"; font.pixelSize: 11 }
                     Slider {
-                        id: zoomSlider
-                        from: 20.0
-                        to: 250.0
-                        value: root.pixelsPerSecond
+                        from: 20.0; to: 250.0; value: root.pixelsPerSecond
                         onMoved: root.pixelsPerSecond = value
                     }
-                    Text {
-                        text: Math.round(root.pixelsPerSecond) + " px/s"
-                        color: "#E2E5F0"
-                        font.pixelSize: 10
-                        font.family: "Monospace"
+                }
+
+                // Export Button (Matching video frams.avif top right)
+                Button {
+                    id: exportTopBtn
+                    text: "⤓ EXPORT"
+                    Layout.preferredHeight: 30
+                    contentItem: Text {
+                        text: parent.text
+                        color: "#FFFFFF"
+                        font.pixelSize: 11
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
                     }
+                    background: Rectangle {
+                        color: exportTopBtn.hovered ? "#00C853" : "#00E676"
+                        radius: 6
+                    }
+                    onClicked: root.requestExport()
                 }
             }
         }
@@ -114,12 +207,12 @@ Rectangle {
             id: timelineScrollView
             Layout.fillWidth: true
             Layout.fillHeight: true
-            contentWidth: Math.max(width, (root.totalDuration + 5.0) * root.pixelsPerSecond + 140)
+            contentWidth: Math.max(width, (root.totalDuration + 5.0) * root.pixelsPerSecond + 100)
             clip: true
 
             Item {
                 width: timelineScrollView.contentWidth
-                height: trackColumn.height + 36
+                height: trackColumn.height + 40
 
                 // ---------------- RULER HEADER ----------------
                 Rectangle {
@@ -135,12 +228,12 @@ Rectangle {
 
                     // Left Header Spacer
                     Rectangle {
-                        x: 0; y: 0; width: 140; height: parent.height
-                        color: "#141620"
+                        x: 0; y: 0; width: 90; height: parent.height
+                        color: "#13141E"
                         border.color: "#26293C"
                         Text {
                             anchors.centerIn: parent
-                            text: "TIMECODE"
+                            text: "LAYERS"
                             color: "#7E849E"
                             font.pixelSize: 10
                             font.bold: true
@@ -149,9 +242,9 @@ Rectangle {
 
                     // Ticks & Numbers
                     Item {
-                        x: 140
+                        x: 90
                         y: 0
-                        width: parent.width - 140
+                        width: parent.width - 90
                         height: parent.height
 
                         Repeater {
@@ -191,23 +284,19 @@ Rectangle {
                             cursorShape: Qt.PointingHandCursor
                             onPressed: function(mouse) {
                                 var sec = Math.max(0.0, mouse.x / root.pixelsPerSecond);
-                                if (root.timelineController) {
-                                    root.timelineController.seek(sec);
-                                }
+                                if (root.timelineController) root.timelineController.seek(sec);
                             }
                             onPositionChanged: function(mouse) {
                                 if (pressed) {
                                     var sec = Math.max(0.0, mouse.x / root.pixelsPerSecond);
-                                    if (root.timelineController) {
-                                        root.timelineController.seek(sec);
-                                    }
+                                    if (root.timelineController) root.timelineController.seek(sec);
                                 }
                             }
                         }
                     }
                 }
 
-                // ---------------- TRACKS CONTAINER ----------------
+                // ---------------- TRACKS CONTAINER (Matching video frams.avif layers) ----------------
                 Column {
                     id: trackColumn
                     x: 0
@@ -215,136 +304,191 @@ Rectangle {
                     width: parent.width
                     spacing: 4
 
-                    // Track V2: Overlay & FX
+                    // Layer 1: Group 1 (Coral Red)
                     TimelineTrack {
-                        trackId: "v2"
-                        trackName: "V2 Overlay"
+                        trackId: "t_group1"
+                        trackName: "Group 1"
                         trackType: "fx"
-                        trackAccent: "#E040FB"
+                        trackIcon: "↗"
+                        trackAccent: "#FF6E6A"
                         pixelsPerSecond: root.pixelsPerSecond
                         width: parent.width
 
                         TimelineClip {
-                            clipId: "clip_pip"
-                            clipName: "PiP Overlay Card"
+                            clipId: "clip_group1"
+                            clipName: "Group 1"
                             clipType: "fx"
-                            startTime: 3.0
-                            duration: 8.0
+                            startTime: 1.0
+                            duration: 12.0
                             pixelsPerSecond: root.pixelsPerSecond
                         }
                     }
 
-                    // Track V1: Main Video
+                    // Layer 2: Plus 2 (Teal)
                     TimelineTrack {
-                        trackId: "v1"
-                        trackName: "V1 Video"
+                        trackId: "t_plus2"
+                        trackName: "Plus 2"
+                        trackType: "fx"
+                        trackIcon: "✚"
+                        trackAccent: "#48DBFB"
+                        pixelsPerSecond: root.pixelsPerSecond
+                        width: parent.width
+
+                        TimelineClip {
+                            clipId: "clip_plus2"
+                            clipName: "Plus 2"
+                            clipType: "fx"
+                            startTime: 0.0
+                            duration: 14.0
+                            pixelsPerSecond: root.pixelsPerSecond
+                        }
+                    }
+
+                    // Layer 3: Multifoil 1 (Mint Green)
+                    TimelineTrack {
+                        trackId: "t_multi1"
+                        trackName: "Multifoil 1"
                         trackType: "video"
-                        trackAccent: "#00E5FF"
+                        trackIcon: "✱"
+                        trackAccent: "#1DD1A1"
+                        pixelsPerSecond: root.pixelsPerSecond
+                        width: parent.width
+
+                        TimelineClip {
+                            clipId: "clip_multi1"
+                            clipName: "Multifoil 1"
+                            clipType: "video"
+                            startTime: 2.5
+                            duration: 10.5
+                            pixelsPerSecond: root.pixelsPerSecond
+                        }
+                    }
+
+                    // Layer 4: Plus 1 (Sky Blue)
+                    TimelineTrack {
+                        trackId: "t_plus1"
+                        trackName: "Plus 1"
+                        trackType: "video"
+                        trackIcon: "✚"
+                        trackAccent: "#54A0FF"
                         pixelsPerSecond: root.pixelsPerSecond
                         width: parent.width
 
                         TimelineClip {
                             clipId: "clip_main"
-                            clipName: "Master Video Stream"
+                            clipName: "Plus 1"
                             clipType: "video"
-                            startTime: 0.0
-                            duration: root.totalDuration
+                            startTime: 1.5
+                            duration: 11.5
                             pixelsPerSecond: root.pixelsPerSecond
                         }
                     }
 
-                    // Track A1: Primary Audio (PipeWire 48kHz Stereo)
+                    // Layer 5: Polygon 1 (Teal)
                     TimelineTrack {
-                        trackId: "a1"
-                        trackName: "A1 Dialog"
-                        trackType: "audio"
-                        trackAccent: "#00E676"
+                        trackId: "t_poly1"
+                        trackName: "Polygon 1"
+                        trackType: "fx"
+                        trackIcon: "⬡"
+                        trackAccent: "#48DBFB"
                         pixelsPerSecond: root.pixelsPerSecond
                         width: parent.width
 
                         TimelineClip {
-                            clipId: "clip_audio1"
-                            clipName: "Dialogue_Master_48k.wav"
-                            clipType: "audio"
+                            clipId: "clip_poly1"
+                            clipName: "Polygon 1"
+                            clipType: "fx"
                             startTime: 0.0
-                            duration: root.totalDuration
+                            duration: 14.0
                             pixelsPerSecond: root.pixelsPerSecond
                         }
                     }
 
-                    // Track A2: BGM / Music
+                    // Layer 6: Text Layer (Gold/Yellow)
                     TimelineTrack {
-                        trackId: "a2"
-                        trackName: "A2 Music"
-                        trackType: "audio"
-                        trackAccent: "#FFB300"
+                        trackId: "t_text1"
+                        trackName: "Text Layer"
+                        trackType: "text"
+                        trackIcon: "T"
+                        trackAccent: "#FECA57"
                         pixelsPerSecond: root.pixelsPerSecond
                         width: parent.width
 
                         TimelineClip {
-                            clipId: "clip_audio2"
-                            clipName: "Cinematic_Score_Stereo.flac"
-                            clipType: "audio"
-                            startTime: 2.0
-                            duration: Math.max(5.0, root.totalDuration - 2.0)
+                            clipId: "clip_text1"
+                            clipName: "Text Layer"
+                            clipType: "text"
+                            startTime: 0.0
+                            duration: 14.0
                             pixelsPerSecond: root.pixelsPerSecond
                         }
                     }
                 }
 
-                // ---------------- SYNCHRONIZED PLAYHEAD ----------------
+                // ==================== WHITE EDITING LINE & FLOATING TIMECODE (Matching video frams.avif) ====================
                 Item {
-                    id: playhead
-                    x: 140 + (root.playheadPosition * root.pixelsPerSecond) - 8
+                    id: editingLineContainer
+                    x: 90 + (root.playheadPosition * root.pixelsPerSecond)
                     y: 0
-                    width: 16
+                    width: 60
                     height: parent.height
-                    z: 100
+                    z: 200
 
-                    // Red Cursor Head
-                    Canvas {
-                        width: 16
-                        height: 16
-                        y: 8
-                        onPaint: {
-                            var ctx = getContext("2d");
-                            ctx.clearRect(0, 0, width, height);
-                            ctx.fillStyle = "#FF1744";
-                            ctx.beginPath();
-                            ctx.moveTo(0, 0);
-                            ctx.lineTo(16, 0);
-                            ctx.lineTo(16, 8);
-                            ctx.lineTo(8, 16);
-                            ctx.lineTo(0, 8);
-                            ctx.closePath();
-                            ctx.fill();
+                    // Floating Timecode Badge (Centered exactly over the white line)
+                    Rectangle {
+                        anchors.horizontalCenter: parent.left
+                        anchors.top: parent.top
+                        anchors.topMargin: 2
+                        width: tcLabel.contentWidth + 16
+                        height: 22
+                        radius: 6
+                        color: "#181A24"
+                        border.color: "#4A5568"
+                        border.width: 1
+
+                        Text {
+                            id: tcLabel
+                            anchors.centerIn: parent
+                            text: root.timelineController ? root.timelineController.timecode : "00:00:00"
+                            color: "#FFFFFF"
+                            font.pixelSize: 11
+                            font.bold: true
+                            font.family: "Monospace"
                         }
                     }
 
-                    // Playhead Needle Line
+                    // White Editing Line Needle (Full Height across all tracks)
                     Rectangle {
-                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.horizontalCenter: parent.left
                         anchors.top: parent.top
-                        anchors.topMargin: 24
+                        anchors.topMargin: 26
                         anchors.bottom: parent.bottom
                         width: 2
-                        color: "#FF1744"
+                        color: "#FFFFFF"
+
+                        // Subtle outer glow
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: 6
+                            height: parent.height
+                            color: "#40FFFFFF"
+                            radius: 3
+                            z: -1
+                        }
                     }
 
-                    // Playhead Dragger
+                    // Drag scrubber mouse area
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.SplitHCursor
-                        drag.target: playhead
+                        drag.target: editingLineContainer
                         drag.axis: Drag.XAxis
-                        drag.minimumX: 132
+                        drag.minimumX: 90
 
                         onPositionChanged: {
                             if (drag.active) {
-                                var sec = Math.max(0.0, (playhead.x + 8 - 140) / root.pixelsPerSecond);
-                                if (root.timelineController) {
-                                    root.timelineController.seek(sec);
-                                }
+                                var sec = Math.max(0.0, (editingLineContainer.x - 90) / root.pixelsPerSecond);
+                                if (root.timelineController) root.timelineController.seek(sec);
                             }
                         }
                     }
